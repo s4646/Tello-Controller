@@ -3,6 +3,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Joy
 
 from socket import *
+from djitellopy import tello
 import time
 
 class MinimalSubscriber(Node):
@@ -13,33 +14,18 @@ class MinimalSubscriber(Node):
             Joy,
             'joy',
             self.listener_callback,
-            10)
+            5)
 
-        self._rate = self.create_rate(2) # 10 Hz
-        self.serverSocket = socket(AF_INET, SOCK_DGRAM)
-        self.serverSocket.bind(('', 8889))
+        self._rate = self.create_rate(5) # 5 Hz
+        
+        self.me = tello.Tello()
+        self.me.connect()
 
-        self.serverSocket.sendto('command'.encode(), ('192.168.10.1', 8889))
-        print("Command sent")
-        data, _ = self.serverSocket.recvfrom(128)
-        if data.decode() != 'ok':
-            raise RuntimeError('Tello rejected attempt to enter command mode')
-        print(data.decode())
-
-        self.serverSocket.sendto('battery?'.encode(), ('192.168.10.1', 8889))
-        data, _ = self.serverSocket.recvfrom(128)
-        print("Battery percentage:", data.decode())
-        if int(data.decode()) < 10:
+        if self.me.get_battery()< 10:
+            print("Battery percentage:", self.me.get_battery())
             raise RuntimeError("Tello rejected attemp to takeoff due to low Battery")
         
-        time.sleep(1)
-        self.serverSocket.sendto('takeoff'.encode(), ('192.168.10.1', 8889))
-        print("Takeoff sent")
-        data, _ = self.serverSocket.recvfrom(128)
-        if data.decode() != 'ok':
-            raise RuntimeError('Tello rejected attempt to takeoff')
-        print(data.decode())
-        time.sleep(1)
+        self.me.takeoff()
 
     def listener_callback(self, msg:Joy):
         # print(msg.axes)
@@ -58,23 +44,13 @@ class MinimalSubscriber(Node):
         land = data[10]     # 11
         takeoff = data[11]  # 12
         if land != 0:
-            command = "land"
+            self.me.land()
             print("LAND")
         elif takeoff != 0:
-            command = "takeoff"
+            self.me.takeoff()
             print("TAKEOFF")
         else:
-            command = "rc {} {} {} {}".format(a, b, c, d)
-        
-        self.serverSocket.sendto(command.encode('utf-8'), ('192.168.10.1', 8889))
-        print("Sent: {}".format(command))
-        
-        if land != 0 or takeoff != 0:
-            data, _ = self.serverSocket.recvfrom(128)
-            print(data.decode())
-        
-        time.sleep(0.001)
-
+            self.me.send_rc_control(int(a), int(b), int(c), int(d))
 
 def main(args=None):
 
@@ -90,7 +66,6 @@ def main(args=None):
     # when the garbage collector destroys the node object)
     minimal_subscriber.destroy_node()
     rclpy.shutdown()
-    minimal_subscriber.serverSocket.close()
 
 if __name__ == '__main__':
     main()

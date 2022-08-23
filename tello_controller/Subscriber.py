@@ -15,7 +15,7 @@ class MinimalSubscriber(Node):
             self.listener_callback,
             10)
 
-        self._rate = self.create_rate(1) # 1 Hz
+        self._rate = self.create_rate(2) # 10 Hz
         self.serverSocket = socket(AF_INET, SOCK_DGRAM)
         self.serverSocket.bind(('', 8889))
 
@@ -28,7 +28,7 @@ class MinimalSubscriber(Node):
 
         self.serverSocket.sendto('battery?'.encode(), ('192.168.10.1', 8889))
         data, _ = self.serverSocket.recvfrom(128)
-        print("Battery percentage: ", data.decode())
+        print("Battery percentage:", data.decode())
         if int(data.decode()) < 10:
             raise RuntimeError("Tello rejected attemp to takeoff due to low Battery")
         
@@ -44,17 +44,19 @@ class MinimalSubscriber(Node):
     def listener_callback(self, msg:Joy):
         # print(msg.axes)
         # print(msg.buttons)
-        factor = 60
+        big_factor = 100
+        medium_factor = 50
+        small_factor = 20
 
         data = list(msg.axes)
-        a = -data[0] * factor
-        b = data[1] * factor
-        c = data[3] * factor
-        d = -data[2] * factor
+        a = -data[0] * big_factor    # Left / Right
+        b = data[1] * big_factor     # Forward / Backward
+        c = data[3] * medium_factor  # Up / Down
+        d = -data[2] * big_factor    # Yaw
 
         data = list(msg.buttons)
-        land = data[10]
-        takeoff = data[11]
+        land = data[10]     # 11
+        takeoff = data[11]  # 12
         if land != 0:
             command = "land"
             print("LAND")
@@ -67,11 +69,11 @@ class MinimalSubscriber(Node):
         self.serverSocket.sendto(command.encode('utf-8'), ('192.168.10.1', 8889))
         print("Sent: {}".format(command))
         
-        if land !=0 or takeoff != 0:
+        if land != 0 or takeoff != 0:
             data, _ = self.serverSocket.recvfrom(128)
             print(data.decode())
         
-        time.sleep(0.01)
+        time.sleep(0.001)
 
 
 def main(args=None):
@@ -88,7 +90,7 @@ def main(args=None):
     # when the garbage collector destroys the node object)
     minimal_subscriber.destroy_node()
     rclpy.shutdown()
-
+    minimal_subscriber.serverSocket.close()
 
 if __name__ == '__main__':
     main()

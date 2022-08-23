@@ -4,7 +4,8 @@ from sensor_msgs.msg import Joy
 
 from socket import *
 from djitellopy import tello
-import time
+from threading import Thread
+import cv2
 
 class MinimalSubscriber(Node):
 
@@ -14,25 +15,26 @@ class MinimalSubscriber(Node):
             Joy,
             'joy',
             self.listener_callback,
-            5)
+            10)
 
-        self._rate = self.create_rate(5) # 5 Hz
+        self._rate = self.create_rate(10) # 10 Hz
         
         self.me = tello.Tello()
         self.me.connect()
+        self.me.streamon()
+        
+        print("Battery percentage:", self.me.get_battery())
+        self.video_thread = Thread(target=self.video)
 
-        if self.me.get_battery()< 10:
-            print("Battery percentage:", self.me.get_battery())
+        if self.me.get_battery() < 10:
             raise RuntimeError("Tello rejected attemp to takeoff due to low Battery")
         
         self.me.takeoff()
+        self.video_thread.start()
 
     def listener_callback(self, msg:Joy):
-        # print(msg.axes)
-        # print(msg.buttons)
         big_factor = 100
         medium_factor = 50
-        small_factor = 20
 
         data = list(msg.axes)
         a = -data[0] * big_factor    # Left / Right
@@ -51,6 +53,12 @@ class MinimalSubscriber(Node):
             print("TAKEOFF")
         else:
             self.me.send_rc_control(int(a), int(b), int(c), int(d))
+
+    def video(self):
+        while True:
+            image = self.me.get_frame_read().frame
+            cv2.imshow("results", image)
+            cv2.waitKey(1)
 
 def main(args=None):
 

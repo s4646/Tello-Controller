@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'Logitech_Subscriber'
+package_name = 'tello_controller'
 
 setup(
     name=package_name,
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'Subscriber = Logitech_Subscriber.Subscriber:main'
+        	'controller = tello_controller.Subscriber:main'
         ],
     },
 )

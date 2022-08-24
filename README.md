@@ -1,12 +1,15 @@
 # Tello Controller
 This repo contains ROS2 package that uses the ROS Joy package  
 to control DJI Tello drones with Logitech Extreme 3D Pro joystick.  
-# How To Build
+### How To Build
 In the directory of your package, use colcon to build the package:
 ```bash
 colcon build
 ```
-# How To Use
+### Prerequisites
+* djitellopy - `pip install djitellopy`
+
+### How To Use
 1. Open a terminal, run the joy node:
 ```bash
 ros2 run joy joy_node

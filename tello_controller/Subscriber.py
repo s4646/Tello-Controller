@@ -1,3 +1,4 @@
+from logging import exception
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
@@ -46,12 +47,25 @@ class MinimalSubscriber(Node):
         data = list(msg.buttons)
         land = data[10]     # 11
         takeoff = data[11]  # 12
+        emergency = data[6] # 7
+        battery = data[8]   # 9
+        
         if land != 0:
             self.me.land()
             print("LAND")
         elif takeoff != 0:
             self.me.takeoff()
             print("TAKEOFF")
+        elif battery != 0:
+            print("Battery percentage:", self.me.get_battery())
+        elif emergency != 0:
+            try:
+                print("EMERGENCY")
+                self.me.emergency()
+            except Exception as e:
+                print("Did not receive OK, reconnecting to Tello")
+                self.me.connect()
+
         else:
             self.me.send_rc_control(int(a), int(b), int(c), int(d))
 

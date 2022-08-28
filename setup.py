@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-        	'controller = tello_controller.Subscriber:main'
+        	'extreme = tello_controller.ExtremeSubscriber:main',
+            'xbox = tello_controller.XboxSubscriber:main'
         ],
     },
 )

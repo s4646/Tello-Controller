@@ -6,6 +6,7 @@ from socket import *
 from djitellopy import tello
 from threading import Thread
 import cv2
+import queue
 
 class MinimalSubscriber(Node):
 
@@ -22,15 +23,20 @@ class MinimalSubscriber(Node):
         self.me = tello.Tello()
         self.me.connect()
         self.me.streamon()
+
+        self.cap: cv2.VideoCapture = self.me.get_video_capture()
+        self.q = queue.Queue()
         
         print("Battery percentage:", self.me.get_battery())
         self.video_thread = Thread(target=self.video)
+        self.stream_thread = Thread(target=self.stream)
 
         if self.me.get_battery() < 10:
             raise RuntimeError("Tello rejected attemp to takeoff due to low Battery")
         
-        self.me.takeoff()
+        # self.me.takeoff()
         self.faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        self.stream_thread.start()
         self.video_thread.start()
 
     def listener_callback(self, msg:Joy):
@@ -70,7 +76,10 @@ class MinimalSubscriber(Node):
 
     def video(self):
         while True:
-            image = self.me.get_frame_read().frame
+            try:
+                image = self.q.get()
+            except queue.Empty:
+                continue
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             faces = self.faceCascade.detectMultiScale(
             gray,     
@@ -82,6 +91,16 @@ class MinimalSubscriber(Node):
                 cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
             cv2.imshow("results", image)
             cv2.waitKey(1)
+    
+    def stream(self):
+        while True:
+            ret, frame = self.cap.read()
+            if not self.q.empty():
+                try:
+                    self.q.get_nowait()
+                except queue.Empty:
+                    pass
+            self.q.put(frame)
 
 def main(args=None):
 
